@@ -1,0 +1,45 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Home Assistant Add-on: LLDAP
+# Configures LLDAP before running
+# ==============================================================================
+
+# Generate secrets
+bashio::log.debug "Starting LLDAP secrets check..."
+
+# Define secrets path
+SECRETS_PATH="/data/secrets"
+
+if ! bashio::fs.directory_exists "$SECRETS_PATH"; then
+    mkdir -p "$SECRETS_PATH"
+
+    JWT_SECRET_FILE="/data/secrets/jwt_secret"
+    if head -c 48 /dev/urandom | base64 > "$JWT_SECRET_FILE"; then
+        bashio::log.info "JWT secret generated and stored at $JWT_SECRET_FILE."
+    else
+        bashio::log.error "Failed to generate JWT secret!"
+        exit 1
+    fi
+
+    KEY_SEED_FILE="/data/secrets/key_seed"
+    if head -c 12 /dev/urandom | base64 > "$KEY_SEED_FILE"; then
+        bashio::log.info "Key seed generated and stored at $KEY_SEED_FILE."
+    else
+        bashio::log.error "Failed to generate key seed!"
+        exit 1
+    fi
+
+else
+    bashio::log.debug "Secrets folder already exists. Skipping generation."
+fi
+
+bashio::log.debug "Starting LLDAP configuration check..."
+
+# Validate password
+bashio::config.require.password 'ldap_user_pass'
+ldap_user_pass="$(bashio::config 'ldap_user_pass')"
+if [[ $(bashio::string.length "${ldap_user_pass}") -lt 8 ]]; then
+    bashio::log.fatal "Admin password must be at least 8 characters long!"
+    exit 1
+fi

@@ -1,0 +1,32 @@
+#!/usr/bin/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Home Assistant Add-on: lldap
+# Runs lldap
+# ==============================================================================
+
+bashio::log.info 'Starting lldap...'
+
+# Set environment variables
+export LLDAP_JWT_SECRET_FILE="/data/secrets/jwt_secret"
+export LLDAP_KEY_SEED_FILE="/data/secrets/key_seed"
+
+# Set admin password
+export LLDAP_LDAP_USER_PASS="$(bashio::config 'ldap_user_pass')"
+export LLDAP_FORCE_LDAP_USER_PASS_RESET="always"
+
+# Set LDAP base DN
+domain="$(bashio::config 'domain')"
+export LLDAP_LDAP_BASE_DN="dc=${domain//./,dc=}"
+
+# Check if binary exists
+if ! bashio::fs.file_exists "/app/lldap/lldap"; then
+    bashio::log.error "LLDAP binary not found at /app/lldap/lldap"
+    bashio::log.debug "Contents of /app/lldap: $(ls -la /app/lldap)"
+    exit 1
+fi
+
+# Run lldap
+bashio::log.debug 'Running lldap...'
+cd /app/lldap || exit 1
+exec ./lldap run --config-file /app/lldap/lldap_config.toml
